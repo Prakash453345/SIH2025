@@ -1,38 +1,29 @@
-import passport from 'passport';
-import { Strategy as LocalStrategy } from 'passport-local';
-import bcrypt from 'bcrypt';
-import user from '../schemas/userSchema.js';
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import bcrypt from "bcrypt";
+import User from "../schemas/userSchema.js";
 
 passport.use(
-  new LocalStrategy(async (username, password, done) => {
+  new LocalStrategy({ usernameField: "email" }, async (email, password, done) => {
     try {
-      const findUser = await user.findOne({ username });
+      const user = await User.findOne({ email });
+      if (!user) return done(null, false, { message: "User not found" });
 
-      if (!findUser) {
-        return done(null, false, { message: "Username does not exist. Please register first." });
-      }
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) return done(null, false, { message: "Incorrect password" });
 
-      const isMatch = await bcrypt.compare(password, findUser.password);
-
-      if (!isMatch) {
-        return done(null, false, { message: "Invalid credentials." });
-      }
-
-      return done(null, findUser); 
+      return done(null, user);
     } catch (err) {
       return done(err);
     }
   })
 );
 
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
+passport.serializeUser((user, done) => done(null, user._id));
 passport.deserializeUser(async (id, done) => {
   try {
-    const existingUser = await user.findById(id);
-    done(null, existingUser);
+    const user = await User.findById(id);
+    done(null, user);
   } catch (err) {
     done(err);
   }

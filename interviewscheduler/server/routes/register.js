@@ -1,27 +1,23 @@
 import express from 'express';
-import user from '../schemas/userSchema.js';
+import User from '../schemas/userSchema.js';
 import bcrypt from 'bcrypt';
 
 const router = express.Router();
 
-router.post('/register', async (req, res) => {
-    const { username, password } = req.body;
-
-    const existingUser = await user.findOne({ username });
-
-    if (existingUser) {
-        return res.status(400).json({ success: false, message: "Username already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
+router.post('/', async (req, res) => {
     try {
-        if (!existingUser) {
-            const newUser = new user({ username, password: hashedPassword });
-            await newUser.save();
-            res.status(200).json({ success: true });
-        }
+        const { email, password, name } = req.body;
+        if (!email || !password) return res.status(400).json({ success: false, message: "Email and password required" });
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(400).json({ success: false, message: "User already exists" });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await User.create({ email, password: hashedPassword, name });
+        res.status(201).json({ success: true, message: "User registered successfully", user: { id: newUser._id, email: newUser.email } });
     } catch (err) {
-        res.status(400).json({ success: false, message: err.message });
+        console.error("Registration error:", err);
+        res.status(500).json({ success: false, message: "Server error during registration" });
     }
 });
 
